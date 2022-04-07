@@ -27,6 +27,7 @@ jobs:
           registry-url: https://npm.pkg.github.com/
           always-auth: true
       - run: npm ci
+      - run: npm run build
       - run: npm version --no-git-tag-version --no-commit-hooks ${{ steps.tag.outputs.result }}
       - run: npm publish
         env:
