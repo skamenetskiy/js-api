@@ -73,7 +73,7 @@ export function createServer(props: iConfig): iServer {
                         res.writeHead(code, headers);
                         // write response body
                         if (data !== undefined) {
-                            res.write(JSON.stringify(data));
+                            res.write(JSON.stringify(data) + "\n");
                         }
                     } catch (err) {
                         // handle write error

@@ -9,6 +9,10 @@
   "keywords": [],
   "author": "Semen Kamenetskii",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/skamenetskiy/js-api"
+  },
   "devDependencies": {
     "@tsconfig/node17": "^1.0.0",
     "@types/node": "^17.0.23",
