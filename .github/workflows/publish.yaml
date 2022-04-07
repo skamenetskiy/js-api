@@ -15,11 +15,19 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v3
+      - name: Extract version
+        id: tag
+        uses: actions/github-script@6.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            return context.payload.ref.replace(/\/refs\/tags\/v/, '');
       - uses: actions/setup-node@v3
         with:
           node-version: 17
           registry-url: https://npm.pkg.github.com/
       - run: yarn install
+      - run: yarn version --new-version ${{ steps.tag.outputs.result }}
       - run: yarn publish
         env:
           NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
