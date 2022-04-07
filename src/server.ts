@@ -1,27 +1,30 @@
 import {
     createServer as createHttpServer,
+    Server,
     IncomingMessage,
     ServerResponse,
     OutgoingHttpHeaders,
     IncomingHttpHeaders,
 } from "http";
 
+
 export function createServer(props: iConfig): iApi {
-    const handlers = new Map<string, tHandler>();
-    const logger: iLogger = props.logger || console;
+    const
+        handlers = new Map<string, tHandler>(),
+        logger: iLogger = props.logger || console,
+        host: string | undefined = props.host || undefined,
+        port: number = props.port || defaultPort;
 
-    const handle = (name: string, handler: tHandler): iApi => {
-        if (handlers.has(name)) {
-            throw new Error(`handler ${name} already registered`);
-        }
-        handlers.set(name, handler);
-        return api;
-    };
-
-    const listen = (): void => {
-        createHttpServer(requestHandler)
-            .listen(props.port || 3000, props.host || undefined);
-    };
+    const
+        handle = (name: string, handler: tHandler): iApi => {
+            if (handlers.has(name)) {
+                throw new Error(`handler ${name} already registered`);
+            }
+            handlers.set(name, handler);
+            return api;
+        },
+        listen = (): Server => createHttpServer(requestHandler)
+            .listen(port, host);
 
     const api: iApi = {
         handle,
@@ -32,6 +35,7 @@ export function createServer(props: iConfig): iApi {
         let body: string = "";
 
         const
+            // write response
             write = (
                 data: any,
                 code: number = 200,
@@ -48,6 +52,7 @@ export function createServer(props: iConfig): iApi {
                     res.end();
                 }
             },
+            // write result to response
             writeResult = (result: iResult): void => {
                 if (!result) {
                     write(undefined, 200);
@@ -56,22 +61,28 @@ export function createServer(props: iConfig): iApi {
                 const {code, data, headers} = result;
                 write(data, code || 200, headers || defaultHeaders);
             },
+            // write error to response
             writeError = (err: Error): void =>
                 write({error: err.message}, 500);
 
         const
-            errorListener = (err: Error) => {
+            // "error" event listener
+            errorListener = (err: Error): void => {
                 write({error: err.message}, 500);
             },
-            dataListener = (chunk: string) => {
+            // "data" event listener
+            dataListener = (chunk: string): void => {
                 body += chunk;
             },
-            endListener = () => {
+            // "end" event listener
+            endListener = (): void => {
                 try {
                     const
+                        // parse request body
                         {method, data}: iRequest = JSON.parse(body || "{}");
 
                     const
+
                         contextMethod: tContextMethod = (): string => method,
                         contextData: tContextData = <T>(): T => data,
                         contextHeaders: tContextHeaders = (): IncomingHttpHeaders => req.headers,
@@ -136,9 +147,13 @@ export function createServer(props: iConfig): iApi {
     return api;
 }
 
-const defaultHeaders: OutgoingHttpHeaders = {
-    "content-type": "application/json",
-};
+const
+    // default listen port
+    defaultPort: number = 3000,
+    // default response headers
+    defaultHeaders: OutgoingHttpHeaders = {
+        "content-type": "application/json",
+    };
 
 interface iConfig {
     port?: number;
