@@ -1,5 +1,5 @@
 {
-  "name": "js-api",
+  "name": "@skamenetskiy/js-api",
   "version": "0.0.0",
   "description": "Simple library for creating nodejs api server and client.",
   "main": "dist/main.js",
