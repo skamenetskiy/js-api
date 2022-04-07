@@ -14,7 +14,7 @@
     "url": "https://github.com/skamenetskiy/js-api"
   },
   "publishConfig": {
-    "registry": "npm.pkg.github.com"
+    "registry": "https://npm.pkg.github.com/"
   },
   "devDependencies": {
     "@tsconfig/node17": "^1.0.0",
