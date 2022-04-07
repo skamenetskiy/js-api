@@ -26,7 +26,7 @@ jobs:
           node-version: 17
           registry-url: https://npm.pkg.github.com/
       - run: yarn install
-      - run: yarn version --new-version ${{ steps.tag.outputs.result }}
+      - run: yarn version --no-git-tag-version --no-commit-hooks --new-version ${{ steps.tag.outputs.result }}
       - run: yarn publish
         env:
           NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
