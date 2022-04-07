@@ -1,150 +1,193 @@
 import {
     createServer as createHttpServer,
+    ServerOptions as httpServerOptions,
     Server,
     IncomingMessage,
     ServerResponse,
     OutgoingHttpHeaders,
     IncomingHttpHeaders,
 } from "http";
+import {
+    createServer as createHttpsServer,
+    ServerOptions as httpsServerOptions,
+} from "https";
+import {SecureContextOptions} from "tls";
 
-
-export function createServer(props: iConfig): iApi {
+// create new server
+export function createServer(props: iConfig): iServer {
     const
+        // customer handlers container
         handlers = new Map<string, tHandler>(),
+        // logger
         logger: iLogger = props.logger || console,
+        // server host to listen
         host: string | undefined = props.host || undefined,
-        port: number = props.port || defaultPort;
+        // server port to listen
+        port: number = props.port || defaultPort,
+        // is tls server
+        tls: boolean = props.tls === true,
+        // http(s) server options
+        serverOpts: httpServerOptions | httpsServerOptions = {
+            ...(tls ? props.tlsOptions || {} : {}),
+        };
 
     const
-        handle = (name: string, handler: tHandler): iApi => {
+        // server.handle() definition
+        handle = (name: string, handler: tHandler): iServer => {
             if (handlers.has(name)) {
                 throw new Error(`handler ${name} already registered`);
             }
             handlers.set(name, handler);
-            return api;
+            return server;
         },
-        listen = (): Server => createHttpServer(requestHandler)
-            .listen(port, host);
+        // server.listen() definition
+        listen = (): Server => props.tls === true
+            ? createHttpsServer(serverOpts, requestHandler)
+                .listen(port, host)
+            : createHttpServer(serverOpts, requestHandler)
+                .listen(port, host);
 
-    const api: iApi = {
-        handle,
-        listen,
-    };
+    const
+        // api definition
+        server: iServer = {
+            handle,
+            listen,
+        };
 
-    const requestHandler = (req: IncomingMessage, res: ServerResponse) => {
-        let body: string = "";
+    const
+        // request handler for all incoming requests
+        requestHandler = (req: IncomingMessage, res: ServerResponse) => {
+            let
+                // request body string
+                body: string = "";
 
-        const
-            // write response
-            write = (
-                data: any,
-                code: number = 200,
-                headers: OutgoingHttpHeaders = defaultHeaders,
-            ): void => {
-                try {
-                    res.writeHead(code, headers);
-                    if (data !== undefined) {
-                        res.write(JSON.stringify(data));
+            const
+                // write response
+                write = (
+                    data: any,
+                    code: number = 200,
+                    headers: OutgoingHttpHeaders = defaultHeaders,
+                ): void => {
+                    try {
+                        // write response headers
+                        res.writeHead(code, headers);
+                        // write response body
+                        if (data !== undefined) {
+                            res.write(JSON.stringify(data));
+                        }
+                    } catch (err) {
+                        // handle write error
+                        logger.error(err);
+                    } finally {
+                        // end the response
+                        res.end();
                     }
-                } catch (err) {
-                    logger.error(err);
-                } finally {
-                    res.end();
-                }
-            },
-            // write result to response
-            writeResult = (result: iResult): void => {
-                if (!result) {
-                    write(undefined, 200);
-                    return
-                }
-                const {code, data, headers} = result;
-                write(data, code || 200, headers || defaultHeaders);
-            },
-            // write error to response
-            writeError = (err: Error): void =>
-                write({error: err.message}, 500);
-
-        const
-            // "error" event listener
-            errorListener = (err: Error): void => {
-                write({error: err.message}, 500);
-            },
-            // "data" event listener
-            dataListener = (chunk: string): void => {
-                body += chunk;
-            },
-            // "end" event listener
-            endListener = (): void => {
-                try {
-                    const
-                        // parse request body
-                        {method, data}: iRequest = JSON.parse(body || "{}");
-
-                    const
-
-                        contextMethod: tContextMethod = (): string => method,
-                        contextData: tContextData = <T>(): T => data,
-                        contextHeaders: tContextHeaders = (): IncomingHttpHeaders => req.headers,
-                        contextResult: tContextResult = (
-                            data: any,
-                            code: number = 200,
-                            headers: OutgoingHttpHeaders = defaultHeaders,
-                        ): iResult => ({
-                            code,
-                            data,
-                            headers,
-                        }),
-                        contextError: tContextError = (
-                            err: Error,
-                            code: number = 500,
-                            headers: OutgoingHttpHeaders = defaultHeaders,
-                        ): iResult => ({
-                            code,
-                            data: {error: err.message},
-                            headers,
-                        });
-
-                    const
-                        handleResult = (result: Promise<iResult> | iResult): void => {
-                            if (result instanceof Promise) {
-                                result
-                                    .then(writeResult)
-                                    .catch(writeError);
-                            } else {
-                                writeResult(result);
-                            }
-                        };
-
-
-                    const handler = handlers.get(method);
-                    if (!handler) {
-                        write({error: `unknown method ${method}`}, 500);
-                        return;
+                },
+                // write result to response
+                writeResult = (result: iResult): void => {
+                    if (!result) {
+                        write(undefined, 200);
+                        return
                     }
+                    const {code, data, headers} = result;
+                    write(data, code || 200, headers || defaultHeaders);
+                },
+                // write error to response
+                writeError = (err: Error): void =>
+                    write({error: err.message}, 500);
 
-                    const
-                        ctx: iContext = {
-                            method: contextMethod,
-                            data: contextData,
-                            headers: contextHeaders,
-                            result: contextResult,
-                            error: contextError,
-                        },
-                        result = handler(ctx);
+            const
+                // "error" event listener
+                errorListener = (err: Error): void => {
+                    write({error: err.message}, 500);
+                },
+                // "data" event listener
+                dataListener = (chunk: string): void => {
+                    body += chunk;
+                },
+                // "end" event listener
+                endListener = (): void => {
+                    try {
+                        const
+                            // parse request body
+                            {method, data}: iRequest = JSON.parse(body || "{}");
 
-                    handleResult(result);
-                } catch (err) {
-                    writeError(err as Error);
-                }
-            };
+                        const
+                            // context.method() definition
+                            contextMethod: tContextMethod = (): string => method,
+                            // context.data() definition
+                            contextData: tContextData = <T>(): T => data,
+                            // context.headers() definition
+                            contextHeaders: tContextHeaders = (): IncomingHttpHeaders => req.headers,
+                            // context.result() definition
+                            contextResult: tContextResult = (
+                                data: any,
+                                code: number = 200,
+                                headers: OutgoingHttpHeaders = defaultHeaders,
+                            ): iResult => ({
+                                code,
+                                data,
+                                headers,
+                            }),
+                            // context.error() definition
+                            contextError: tContextError = (
+                                err: Error,
+                                code: number = 500,
+                                headers: OutgoingHttpHeaders = defaultHeaders,
+                            ): iResult => ({
+                                code,
+                                data: {error: err.message},
+                                headers,
+                            });
 
-        req.on("data", dataListener);
-        req.on("error", errorListener);
-        req.on("end", endListener);
-    };
+                        const
+                            // result handler
+                            handleResult = (result: Promise<iResult> | iResult): void => {
+                                if (result instanceof Promise) {
+                                    // handle async result
+                                    result
+                                        .then(writeResult)
+                                        .catch(writeError);
+                                } else {
+                                    // handle sync result
+                                    writeResult(result);
+                                }
+                            };
 
-    return api;
+                        // find handler
+                        const handler = handlers.get(method);
+                        if (!handler) {
+                            write({error: `unknown method ${method}`}, 500);
+                            return;
+                        }
+
+                        const
+                            // create request context
+                            ctx: iContext = {
+                                method: contextMethod,
+                                data: contextData,
+                                headers: contextHeaders,
+                                result: contextResult,
+                                error: contextError,
+                            },
+                            // execute handler
+                            result = handler(ctx);
+
+                        // handle result
+                        handleResult(result);
+                    } catch (err) {
+                        // handle any error
+                        writeError(err as Error);
+                    }
+                };
+
+            // setup request events
+            req.on("data", dataListener);
+            req.on("error", errorListener);
+            req.on("end", endListener);
+        };
+
+    return server;
 }
 
 const
@@ -159,14 +202,16 @@ interface iConfig {
     port?: number;
     host?: string;
     logger?: iLogger;
+    tls?: boolean;
+    tlsOptions: SecureContextOptions,
 }
 
-interface iApi {
+interface iServer {
     handle: tApiHandle;
     listen: tApiListen;
 }
 
-type tApiHandle = (name: string, handler: tHandler) => iApi;
+type tApiHandle = (name: string, handler: tHandler) => iServer;
 type tApiListen = () => void;
 
 interface iRequest {

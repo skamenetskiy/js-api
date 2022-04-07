@@ -2,7 +2,7 @@
   "name": "js-api",
   "version": "0.0.1",
   "description": "Simple library for creating nodejs api server and client.",
-  "main": "main.js",
+  "main": "dist/main.js",
   "scripts": {
     "build": "tsc"
   },
