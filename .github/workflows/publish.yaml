@@ -26,9 +26,8 @@ jobs:
           node-version: 17
           registry-url: https://npm.pkg.github.com/
           always-auth: true
-      - run: yarn install
-      - run: yarn version --no-git-tag-version --no-commit-hooks --new-version ${{ steps.tag.outputs.result }}
-      - run: echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > ~/.npmrc
-      - run: yarn publish
+      - run: npm ci
+      - run: npm version --no-git-tag-version --no-commit-hooks ${{ steps.tag.outputs.result }}
+      - run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
